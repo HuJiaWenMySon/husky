@@ -1,0 +1,50 @@
+<launch>
+    <!-- launch文件中要用到的一些参数 -->
+    <arg name="rname" default="go1"/>
+    <arg name="robot_path" value="(find $(arg rname)_description)"/>
+    <arg name="dollar" value="$"/>
+    <arg name="use_xacro" default="true"/>
+    <arg name="user_debug" default="false"/>
+    <arg name="use_camera" default="false"/>
+    <arg name="use_sim_time" default="true"/>
+
+    <!-- 将yaml文件传入到参数服务器 -->
+    <rosparam file="$(arg dollar)$(arg robot_path)/config/robot_control.yaml" command="load"/>
+
+    <!-- 读取urdf或者xacro，保存在参数robot description中-->
+    <group if="$(arg use_xacro)">
+        <param name="robot_description"
+            command="$(find xacro)/xacro '$(arg dollar)$(arg robot_path)/xacro/robot.xacro'
+            DEBUG:=$(arg user_debug)
+            USE_CAMERA:=$(arg use_camera)"/>
+    </group>
+    <group unless="$(arg use_xacro)">
+        <param name="robot_description" command="cat $(arg dollar)$(arg robot_path)/urdf/robot.urdf"/>
+    </group>
+
+    <!-- 启动Gazebo -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+    </include>
+
+    <!-- 在Gazebo中加载机器人模型 -->
+    <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+      args="-urdf -model $(arg rname)_gazebo -param robot_description -unpause -x 0.0 -y 0.0 -z 1.0"/>
+
+    <!-- 加载controller -->
+    <node pkg="controller_manager" type="spawner" name="controller_spawner" respawn="false"
+          output="screen" ns="/$(arg rname)_gazebo" args="joint_state_controller
+          FL_hip_controller FL_thigh_controller FL_calf_controller
+          FR_hip_controller FR_thigh_controller FR_calf_controller
+          RL_hip_controller RL_thigh_controller RL_calf_controller
+          RR_hip_controller RR_thigh_controller RR_calf_controller "/>
+
+    <!-- 发布joint state -->
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher"
+          respawn="false" output="screen">
+        <remap from="/joint_states" to="/$(arg rname)_gazebo/joint_states"/>
+    </node>
+
+    <!-- 启动joystick -->
+    <node respawn="true" pkg="joy" type="joy_node" name="joystick" />
+</launch>

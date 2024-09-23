@@ -1,0 +1,11 @@
+<launch>
+    <!-- launch文件中要用到的一些参数 -->
+    <arg name="rname" default="go1"/>
+    <arg name="sim" default="true"/>    
+    <arg if="$(arg sim)" name="config_path" value="$(find quadruped)/config/robot/$(arg rname)_sim_config.yaml"/>
+    <arg unless="$(arg sim)" name="config_path" value="$(find quadruped)/config/robot/$(arg rname)_config.yaml"/>
+
+    <rosparam command="load" file="$(arg config_path)" />
+    <node pkg="quadruped" type="quadruped_node" name="quadruped" output="screen" />
+
+</launch>
